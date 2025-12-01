@@ -1,9 +1,7 @@
 import sqlite3
 import os
 import logging
-from dotenv import load_dotenv
-
-load_dotenv()
+from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +9,7 @@ class DatabaseManager:
     def __init__(self):
         self.db_file = 'pereval.db'
         
-    def add_pereval(self, data):
+    def add_pereval(self, data: Dict[str, Any]) -> Dict[str, Any]:
         try:
             conn = sqlite3.connect(self.db_file)
             cursor = conn.cursor()
@@ -20,8 +18,13 @@ class DatabaseManager:
             user_data = data.get('user', {})
             cursor.execute(
                 "INSERT INTO users (email, phone, fam, name, otc) VALUES (?, ?, ?, ?, ?)",
-                (user_data.get('email'), user_data.get('phone'), user_data.get('fam'), 
-                 user_data.get('name'), user_data.get('otc'))
+                (
+                    user_data.get('email'),
+                    user_data.get('phone'),
+                    user_data.get('fam'),
+                    user_data.get('name'),
+                    user_data.get('otc')
+                )
             )
             user_id = cursor.lastrowid
             
@@ -33,33 +36,22 @@ class DatabaseManager:
                  level_winter, level_summer, level_autumn, level_spring, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')""",
                 (
-                    data.get('beautyTitle'), data.get('title'), data.get('other_titles'),
-                    data.get('connect'), float(data.get('coords', {}).get('latitude', 0)),
+                    data.get('beautyTitle'),
+                    data.get('title'),
+                    data.get('other_titles'),
+                    data.get('connect'),
+                    float(data.get('coords', {}).get('latitude', 0)),
                     float(data.get('coords', {}).get('longitude', 0)),
-                    int(data.get('coords', {}).get('height', 0)), user_id, 1,
-                    data.get('level', {}).get('winter'), data.get('level', {}).get('summer'),
-                    data.get('level', {}).get('autumn'), data.get('level', {}).get('spring')
+                    int(data.get('coords', {}).get('height', 0)),
+                    user_id,
+                    1,  # area_id по умолчанию
+                    data.get('level', {}).get('winter'),
+                    data.get('level', {}).get('summer'),
+                    data.get('level', {}).get('autumn'),
+                    data.get('level', {}).get('spring')
                 )
             )
             pereval_id = cursor.lastrowid
-            
-            # Добавляем изображения
-            images = data.get('images', {}).get('images', [])
-            for img_data in images:
-                cursor.execute(
-                    """INSERT INTO pereval_images (pereval_id, title, file_path)
-                     VALUES (?, ?, ?)""",
-                    (pereval_id, img_data.get('title'), img_data.get('file_path'))
-                )
-            
-            # Добавляем активности
-            activities = data.get('activities', [])
-            for activity_id in activities:
-                cursor.execute(
-                    """INSERT INTO pereval_activities (pereval_id, activity_type_id)
-                     VALUES (?, ?)""",
-                    (pereval_id, activity_id)
-                )
             
             conn.commit()
             conn.close()
@@ -67,12 +59,14 @@ class DatabaseManager:
             return {'status': 200, 'message': 'Success', 'id': pereval_id}
             
         except Exception as e:
+            logger.error(f"Error adding pereval: {e}")
             return {'status': 500, 'message': f'Database error: {str(e)}', 'id': None}
     
-    def get_pereval(self, pereval_id):
+    def get_pereval(self, pereval_id: int) -> Optional[Dict[str, Any]]:
         """Получение перевала по ID"""
         try:
             conn = sqlite3.connect(self.db_file)
+            conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
             cursor.execute("""
@@ -82,9 +76,38 @@ class DatabaseManager:
                 WHERE p.id = ?
             """, (pereval_id,))
             
-            pereval = cursor.fetchone()
-            if not pereval:
+            row = cursor.fetchone()
+            if not row:
                 return None
+            
+            # Создаем словарь с данными перевала
+            pereval = {
+                'id': row['id'],
+                'date_added': row['date_added'],
+                'beautyTitle': row['beauty_title'],
+                'title': row['title'],
+                'other_titles': row['other_titles'],
+                'connect': row['connect'],
+                'coords': {
+                    'latitude': str(row['latitude']),
+                    'longitude': str(row['longitude']),
+                    'height': str(row['height'])
+                },
+                'user': {
+                    'email': row['email'],
+                    'phone': row['phone'],
+                    'fam': row['fam'],
+                    'name': row['name'],
+                    'otc': row['otc']
+                },
+                'level': {
+                    'winter': row['level_winter'],
+                    'summer': row['level_summer'],
+                    'autumn': row['level_autumn'],
+                    'spring': row['level_spring']
+                },
+                'status': row['status']
+            }
             
             # Получаем изображения
             cursor.execute("""
@@ -105,53 +128,29 @@ class DatabaseManager:
             
             conn.close()
             
-            return {
-                'id': pereval[0],
-                'date_added': pereval[1],
-                'beautyTitle': pereval[2],
-                'title': pereval[3],
-                'other_titles': pereval[4],
-                'connect': pereval[5],
-                'coords': {
-                    'latitude': str(pereval[6]),
-                    'longitude': str(pereval[7]),
-                    'height': str(pereval[8])
-                },
-                'user': {
-                    'email': pereval[13],
-                    'phone': pereval[14],
-                    'fam': pereval[15],
-                    'name': pereval[16],
-                    'otc': pereval[17]
-                },
-                'level': {
-                    'winter': pereval[11],
-                    'summer': pereval[12],
-                    'autumn': pereval[13],
-                    'spring': pereval[14]
-                },
-                'status': pereval[15],
-                'images': [
-                    {
-                        'id': img[0],
-                        'title': img[1],
-                        'data': img[2],
-                        'date_added': img[3]
-                    } for img in images
-                ],
-                'activities': [
-                    {
-                        'id': act[0],
-                        'title': act[1]
-                    } for act in activities
-                ]
-            }
+            pereval['images'] = [
+                {
+                    'id': img[0],
+                    'title': img[1],
+                    'data': img[2],
+                    'date_added': img[3]
+                } for img in images
+            ]
+            
+            pereval['activities'] = [
+                {
+                    'id': act[0],
+                    'title': act[1]
+                } for act in activities
+            ]
+            
+            return pereval
             
         except Exception as e:
             logger.error(f"Error getting pereval: {e}")
             return None
     
-    def update_pereval(self, pereval_id, data):
+    def update_pereval(self, pereval_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         """Обновление перевала"""
         try:
             conn = sqlite3.connect(self.db_file)
@@ -168,7 +167,7 @@ class DatabaseManager:
             if status != 'new':
                 return {'state': 0, 'message': f'Cannot edit pereval with status: {status}'}
             
-            # Обновляем данные перевала (кроме user_id)
+            # Обновляем данные перевала
             update_fields = []
             update_values = []
             
@@ -220,26 +219,6 @@ class DatabaseManager:
                 update_values.append(pereval_id)
                 cursor.execute(update_query, update_values)
             
-            # Обновляем изображения (удаляем старые, добавляем новые)
-            if 'images' in data:
-                cursor.execute("DELETE FROM pereval_images WHERE pereval_id = ?", (pereval_id,))
-                images = data.get('images', {}).get('images', [])
-                for img_data in images:
-                    cursor.execute(
-                        "INSERT INTO pereval_images (pereval_id, title, file_path) VALUES (?, ?, ?)",
-                        (pereval_id, img_data.get('title'), img_data.get('file_path'))
-                    )
-            
-            # Обновляем активности (удаляем старые, добавляем новые)
-            if 'activities' in data:
-                cursor.execute("DELETE FROM pereval_activities WHERE pereval_id = ?", (pereval_id,))
-                activities = data.get('activities', [])
-                for activity_id in activities:
-                    cursor.execute(
-                        "INSERT INTO pereval_activities (pereval_id, activity_type_id) VALUES (?, ?)",
-                        (pereval_id, activity_id)
-                    )
-            
             conn.commit()
             conn.close()
             
@@ -249,7 +228,7 @@ class DatabaseManager:
             logger.error(f"Error updating pereval: {e}")
             return {'state': 0, 'message': f'Database error: {str(e)}'}
     
-    def get_pereval_by_user_email(self, email):
+    def get_pereval_by_user_email(self, email: str) -> List[Dict[str, Any]]:
         """Получение всех перевалов пользователя по email"""
         try:
             conn = sqlite3.connect(self.db_file)
@@ -280,4 +259,5 @@ class DatabaseManager:
             logger.error(f"Error getting perevals by email: {e}")
             return []
 
+# Создаем экземпляр для импорта
 db_manager = DatabaseManager()

@@ -240,16 +240,58 @@ pereval_activities - связь перевалов и активностей
 Кодировка: UTF-8
 
 
+
+
+ Тестирование
+Проект имеет полное покрытие тестами с использованием pytest.
+
+Запуск тестов
+bash
+# Установите тестовые зависимости если еще не установлены
+pip install pytest
+
+# Запуск всех тестов
+pytest tests/
+
+# Запуск с подробным выводом
+pytest tests/ -v
+
+# Запуск тестов с покрытием кода
+pytest --cov=app tests/
+
+# Запуск конкретного файла тестов
+pytest tests/test_database.py
+pytest tests/test_correct.py
+
+
+
+
+
 Структура проекта
 
 
 pereval_api/
 ├── app/
-│   ├── models/database.py      # Работа с БД
-│   ├── routes/pereval.py       # API endpoints
-│   └── utils/validators.py     # Валидация данных
-├── migrations/                 # SQL скрипты
-├── pereval.db                 # База данных
-├── requirements.txt           # Зависимости
-├── run.py                    # Точка входа
-└── .env                      # Переменные окружения
+│   ├── __init__.py              # Flask app factory
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── database.py          # DatabaseManager class
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   └── pereval.py           # API endpoints
+│   └── utils/
+│       ├── __init__.py
+│       └── validators.py        # Data validation
+├── tests/
+│   ├── __init__.py
+│   ├── test_correct.py          # API integration tests
+│   └── test_database.py         # DatabaseManager unit tests
+├── migrations/
+│   └── init_tables.sql          # SQL initialization script
+├── pereval.db                   # SQLite database
+├── run.py                       # Application entry point
+├── requirements.txt             # Python dependencies
+├── create_database.py           # Database initialization
+├── check_tables.py              # Database structure check
+├── .env.example                 # Environment variables template
+└── pytest.ini    
