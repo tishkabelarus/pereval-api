@@ -15,17 +15,17 @@ API позволяет добавлять и просматривать инфо
 Быстрый старт
 
 
-1. Клонирование и настройка
+1 Клонирование и настройка
 bash
 
-# Активация виртуального окружения
+Активация виртуального окружения
 venv\Scripts\activate
 
-# Установка зависимостей
+ Установка зависимостей
 pip install -r requirements.txt
 
 
-2. Настройка окружения
+2 Настройка окружения
 Создайте файл .env в корне проекта:
 
 env
@@ -64,6 +64,9 @@ json
     "status": "ok"
 }
 
+Получение перевала по ID
+```http
+GET /submitData/{id}
 
 Добавление перевала
 
@@ -119,12 +122,60 @@ json
 }
 
 
+
+Редактирование перевала
+http
+PATCH /submitData/{id}
+
+Request Body:
+
+Response:
+
+json
+{
+    "state": 1,
+    "message": "Success"
+}
+или
+
+json
+{
+    "state": 0,
+    "message": "Error message"
+}
+
+
+Получение перевалов пользователя
+http
+GET /submitData/?user__email={email}
+
+Response:
+
+json
+{
+    "status": 200,
+    "message": "Success",
+    "data": [
+        {
+            "id": 1,
+            "title": "Пхия",
+            "beautyTitle": "пер. ",
+            "status": "new",
+            "date_added": "2024-01-01 12:00:00"
+        }
+    ]
+}
+
 Получение перевала
 
 
 http
 GET /pereval/{id}
-Получение информации о перевале по ID.
+
+
+
+json
+Получение полной информации о перевале по его ID.
 
 Response:
 
@@ -136,7 +187,29 @@ json
         "id": 1,
         "beautyTitle": "пер. ",
         "title": "Пхия",
-        // ... полные данные перевала
+        "other_titles": "Триев",
+        "connect": "",
+        "coords": {
+            "latitude": "45.3842",
+            "longitude": "7.1525",
+            "height": "1200"
+        },
+        "user": {
+            "email": "user@email.tld",
+            "phone": "79031234567",
+            "fam": "Пупкин",
+            "name": "Василий",
+            "otc": "Иванович"
+        },
+        "level": {
+            "winter": "",
+            "summer": "1А",
+            "autumn": "1А",
+            "spring": ""
+        },
+        "status": "new",
+        "images": [...],
+        "activities": [...]
     }
 }
 
@@ -167,16 +240,58 @@ pereval_activities - связь перевалов и активностей
 Кодировка: UTF-8
 
 
+
+
+ Тестирование
+Проект имеет полное покрытие тестами с использованием pytest.
+
+Запуск тестов
+bash
+# Установите тестовые зависимости если еще не установлены
+pip install pytest
+
+# Запуск всех тестов
+pytest tests/
+
+# Запуск с подробным выводом
+pytest tests/ -v
+
+# Запуск тестов с покрытием кода
+pytest --cov=app tests/
+
+# Запуск конкретного файла тестов
+pytest tests/test_database.py
+pytest tests/test_correct.py
+
+
+
+
+
 Структура проекта
 
 
 pereval_api/
 ├── app/
-│   ├── models/database.py      # Работа с БД
-│   ├── routes/pereval.py       # API endpoints
-│   └── utils/validators.py     # Валидация данных
-├── migrations/                 # SQL скрипты
-├── pereval.db                 # База данных
-├── requirements.txt           # Зависимости
-├── run.py                    # Точка входа
-└── .env                      # Переменные окружения
+│   ├── __init__.py              # Flask app factory
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── database.py          # DatabaseManager class
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   └── pereval.py           # API endpoints
+│   └── utils/
+│       ├── __init__.py
+│       └── validators.py        # Data validation
+├── tests/
+│   ├── __init__.py
+│   ├── test_correct.py          # API integration tests
+│   └── test_database.py         # DatabaseManager unit tests
+├── migrations/
+│   └── init_tables.sql          # SQL initialization script
+├── pereval.db                   # SQLite database
+├── run.py                       # Application entry point
+├── requirements.txt             # Python dependencies
+├── create_database.py           # Database initialization
+├── check_tables.py              # Database structure check
+├── .env.example                 # Environment variables template
+└── pytest.ini    
